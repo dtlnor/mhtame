@@ -13,8 +13,6 @@ mod pog;
 mod font;
 mod scn;
 
-extern crate image;
-
 use clap::{CommandFactory, Parser};
 use dersz::{DeRsz, ENUM_FILE, RSZ_FILE};
 use font::Oft;
@@ -251,6 +249,8 @@ fn dump_file(root_dir: Option<String>, file_path: PathBuf, output_path: PathBuf)
             output_path.set_file_name(output_path.file_name().unwrap().to_str().unwrap().to_string() + ".png");
             println!("saving to {output_path:?}");
             fs::create_dir_all(output_path.parent().unwrap())?;
+            save_png_fast(&output_path, rgba.width, rgba.height, &rgba.data)?;
+            /*
             image::save_buffer(
                 &Path::new(&output_path),
                 &rgba.data,
@@ -258,6 +258,7 @@ fn dump_file(root_dir: Option<String>, file_path: PathBuf, output_path: PathBuf)
                 rgba.height,
                 image::ExtendedColorType::Rgba8,
             )?;
+            */
             Ok(())
         },
         FileType::Pog => {
@@ -375,6 +376,23 @@ fn dump_all(root_dir: Option<String>, out_dir: String, list_file: String) -> Res
     Ok(())
 }
 
+use png::{Encoder, Compression};
+
+fn save_png_fast(path: &Path, width: u32, height: u32, buffer: &[u8]) -> Result<()> {
+    let file = File::create(path)?;
+    let w = std::io::BufWriter::new(file);
+
+    let mut encoder = Encoder::new(w, width, height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_compression(Compression::Fast);
+
+    let mut writer = encoder.write_header()?.into_stream_writer()?;
+    writer.write_all(buffer)?;
+    writer.finish()?;
+
+    Ok(())
+}
 
 
 fn main() -> Result<()> {
